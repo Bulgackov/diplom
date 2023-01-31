@@ -1,25 +1,36 @@
-from keyboard import sender
-from main import *
+from handler.fallback_handler import FallbackHandler
+from handler.farewell_handler import FarewellHandler
+from handler.greetings_handler import GreetingsHandler
+from handler.search_handler import SearchHandler
+from model.user import User
 
 
-for event in bot.longpoll.listen():
-    if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-        request = event.text.lower()
-        user_id = str(event.user_id)
-        msg = event.text.lower()
-        sender(user_id, msg.lower())
-        if request == 'начать поиск':
-            creating_database()
-            bot.write_msg(user_id, f'Привет, {bot.name(user_id)}')
-            bot.find_user(user_id)
-            bot.write_msg(event.user_id, f'Нашёл для тебя пару, жми на кнопку "Вперёд"')
-            bot.find_persons(user_id, offset)
+class VkBot:
 
-        elif request == 'вперёд':
-            for i in line:
-                offset += 1
-                bot.find_persons(user_id, offset)
+    def __init__(self, user_id, vk_group_client, db_session):
+        self.user_id = user_id
+        self.db_session = db_session
+        self.handlers = [
+            GreetingsHandler(user_id, vk_group_client),
+            FarewellHandler(user_id, vk_group_client),
+            SearchHandler(user_id, vk_group_client, db_session),
+            FallbackHandler(user_id, vk_group_client),
+        ]
+        self.last_handler = None
+        self.create_user_if_not_exists()
+
+    def create_user_if_not_exists(self):
+        exists = self.db_session.query(User).filter(User.id == self.user_id).first()
+        if not exists:
+            self.db_session.add(User(id=self.user_id))
+            self.db_session.commit()
+
+    def handle_new_message(self, message):
+        if self.last_handler is not None and self.last_handler.is_active():
+            self.last_handler.handle(message)
+            return
+
+        for handler in self.handlers:
+            if handler.handle(message):
+                self.last_handler = handler
                 break
-
-        else:
-            bot.write_msg(event.user_id, 'Твоё сообщение непонятно')
