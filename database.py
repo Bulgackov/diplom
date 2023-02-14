@@ -1,55 +1,54 @@
-from sqlalchemy import Integer, String, Date, Boolean, Column, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 
-from connect import BDConnect
-
 Base = declarative_base()
-engine = BDConnect.engine
 
-session = BDConnect.session
-
-
-class VKinderUser(Base):
-    __tablename__ = 'vkinder_user'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    vk_id = Column(Integer)
-    first_name = Column(String)
-    last_name = Column(String)
-    date_of_birth = Column(String)
-    city_id = Column(Integer)
-    city_title = Column(String)
+import sqlalchemy as sq
+from sqlalchemy.orm import relationship
+from model.base import Base
 
 
-class SearchParams(Base):
-    __tablename__ = 'search_params'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    id_User = Column(Integer, ForeignKey('vkinder_user.id'))
-    gender = Column(Integer, nullable=False)
-    age_from = Column(Integer, nullable=False)
-    age_to = Column(Integer, nullable=False)
-    date = Column(Date)
+class Candidate(Base):
+    __tablename__ = 'candidate'
 
-
-class SearchResult(Base):
-    __tablename__ = 'search_result'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    vk_id = Column(Integer, unique=True)
-    first_name = Column(String)
-    last_name = Column(String)
-    date_of_birth = Column(String, default='')
-    city_id = Column(Integer)
-    city_title = Column(String)
-    id_User = Column(Integer, ForeignKey('vkinder_user.id'))
-    search_date = Column(Date)
-    viewed = Column(Boolean, default=False)
-
-
-class ViewedUsers(Base):
-    __tablename__ = 'viewed_users'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    id_SearchResult = Column(Integer, ForeignKey('search_result.id'))
-    status = Column(Integer)
+    id = sq.Column(sq.Integer, primary_key=True)
+    first_name = sq.Column(sq.String)
+    last_name = sq.Column(sq.String)
+    screen_name = sq.Column(sq.String)
+    photos = relationship('Photo', backref='candidate')
+    users = relationship('User', secondary='user_to_candidate')
     
+    import sqlalchemy as sq
+from model.base import Base
+
+
+class Photo(Base):
+    __tablename__ = 'photo'
+
+    # "<type><owner_id>_<media_id>"
+    id = sq.Column(sq.String, primary_key=True)
+    photo_id = sq.Column(sq.Integer)
+    candidate_id = sq.Column(sq.Integer, sq.ForeignKey('candidate.id'))
+    likes_count = sq.Column(sq.Integer)
+    comments_count = sq.Column(sq.Integer)
     
-def create_tables():
-Base.metadata.create_all(engine)
+    import sqlalchemy as sq
+from sqlalchemy.orm import relationship
+from model.base import Base
+
+
+class User(Base):
+    __tablename__ = 'user'
+
+    id = sq.Column(sq.Integer, primary_key=True)
+    token = sq.Column(sq.String)
+    candidates = relationship('Candidate', secondary='user_to_candidate')
+    
+    import sqlalchemy as sq
+from model.base import Base
+
+
+user_to_candidate = sq.Table(
+    'user_to_candidate', Base.metadata,
+    sq.Column('user_id', sq.Integer, sq.ForeignKey('user.id')),
+    sq.Column('candidate_id', sq.Integer, sq.ForeignKey('candidate.id')),
+)
