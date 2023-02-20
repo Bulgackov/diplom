@@ -1,34 +1,31 @@
-from vk_bot import VkBot
-from vk_api import VkApi
-from vk_api.longpoll import VkLongPoll, VkEventType
-from sqlalchemy import orm
-import sqlalchemy
-from model.base import Base
-from model.user_to_candidate import user_to_candidate
-from model.photo import Photo
-from model.user import User
-from model.candidate import Candidate
+from vk_api.longpoll import VkEventType, VkLongPoll
+from bot import *
+from db import *
+from config import *
 
-GROUP_TOKEN = '<GROUP-TOKEN>'
-DSN = 'postgresql://<DB-CONNECTION>'
+creating_database()  # создает новую БД.
+for event in bot.longpoll.listen():
+    if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+        request = event.text.lower()
+        user_id = event.user_id
 
-vk = VkApi(token=GROUP_TOKEN)
-long_poll = VkLongPoll(vk)
 
-db_engine = sqlalchemy.create_engine(DSN, echo=True)
-Base.metadata.create_all(db_engine)
-DBSession = orm.sessionmaker(bind=db_engine)
 
-with DBSession() as db_session:
-    with db_session.begin():
-        active_bots = {}
-
-        def get_bot(user_id):
-            if user_id not in active_bots:
-                active_bots[user_id] = VkBot(user_id, vk, db_session)
-            return active_bots[user_id]
-
-        for event in long_poll.listen():
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                bot = get_bot(event.user_id)
-                bot.handle_new_message(event.text)
+        if request == 'поиск':
+            bot.get_age_of_user(user_id)
+            bot.get_target_city(user_id)
+            bot.looking_for_persons(user_id)  # выводит список в чат найденных людей и добавляет их в базу данных.
+            bot.show_found_person(user_id)  # выводит в чат инфо одного человека из базы данных.
+        elif request == 'удалить':
+            creating_database()  # удаляет существующую БД и создает новую.
+            bot.send_msg(user_id, f'  Сейчас наберите "Поиск" ')
+        elif request == 'смотреть':
+            for i in range(0, 1000):
+                offset += 1
+                bot.show_found_person(user_id)
+                break
+        else:
+            bot.send_msg(user_id, f'{bot.name(user_id)} Бот готов к поиску, наберите: \n '
+                                      f' "Поиск" - найденных людей помещаем в БД. \n'
+                                      f' "Удалить" - удаляет старую БД и создает новую. \n'
+                                      f' "Смотреть" - просмотр следующей записи в БД.')
