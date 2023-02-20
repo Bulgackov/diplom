@@ -1,54 +1,108 @@
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
-
-import sqlalchemy as sq
-from sqlalchemy.orm import relationship
-from model.base import Base
+import psycopg2 as pg
+from config import host, user, password, db_name
 
 
-class Candidate(Base):
-    __tablename__ = 'candidate'
-
-    id = sq.Column(sq.Integer, primary_key=True)
-    first_name = sq.Column(sq.String)
-    last_name = sq.Column(sq.String)
-    screen_name = sq.Column(sq.String)
-    photos = relationship('Photo', backref='candidate')
-    users = relationship('User', secondary='user_to_candidate')
-    
-    import sqlalchemy as sq
-from model.base import Base
+with pg.connect(
+    host=host,  # 127.0.0.1
+    user=user,  # postgres
+    password=password,  # postgres
+    database=db_name  # postgres
+) as conn:
+    conn.autocommit = True
 
 
-class Photo(Base):
-    __tablename__ = 'photo'
-
-    # "<type><owner_id>_<media_id>"
-    id = sq.Column(sq.String, primary_key=True)
-    photo_id = sq.Column(sq.Integer)
-    candidate_id = sq.Column(sq.Integer, sq.ForeignKey('candidate.id'))
-    likes_count = sq.Column(sq.Integer)
-    comments_count = sq.Column(sq.Integer)
-    
-    import sqlalchemy as sq
-from sqlalchemy.orm import relationship
-from model.base import Base
+def create_table_found_person():
+    """create table found_person"""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS found_person(
+                id serial,
+                id_vk varchar(20) NOT NULL PRIMARY KEY);"""
+        )
 
 
-class User(Base):
-    __tablename__ = 'user'
+def create_table_seen_person():  # references users(id_vk)
+    """create table seen_person"""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """CREATE TABLE IF NOT EXISTS seen_person(
+            id serial,
+            id_vk varchar(50) PRIMARY KEY);"""
+        )
 
-    id = sq.Column(sq.Integer, primary_key=True)
-    token = sq.Column(sq.String)
-    candidates = relationship('Candidate', secondary='user_to_candidate')
-    
-    import sqlalchemy as sq
-from model.base import Base
+
+def insert_found_person(id_vk):
+    """insert info from looking_for_persons into table found_person"""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            f"""INSERT INTO found_person (id_vk) 
+            VALUES (%s)""",
+            (id_vk,)
+        )
 
 
-user_to_candidate = sq.Table(
-    'user_to_candidate', Base.metadata,
-    sq.Column('user_id', sq.Integer, sq.ForeignKey('user.id')),
-    sq.Column('candidate_id', sq.Integer, sq.ForeignKey('candidate.id')),
-)
+def insert_data_seen_person(id_vk, offset):
+    """inserting data into the seen_users table"""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            f"""INSERT INTO seen_person (id_vk) 
+            VALUES ('{id_vk}')
+            OFFSET '{offset}';"""
+        )
+
+# def check():
+#     with conn.cursor() as cursor:
+#         cursor.execute(
+#             f"""SELECT fp.id_vk
+#             FROM found_person AS fp;"""
+#         )
+#         return cursor.fetchall()
+
+
+
+def select(offset):
+    """select of unreviewed people"""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            f"""SELECT 
+            fp.id_vk, 
+            sp.id_vk
+            FROM found_person AS fp
+            LEFT JOIN seen_person AS sp 
+            ON fp.id_vk = sp.id_vk
+            WHERE sp.id_vk IS NULL
+            OFFSET '{offset}';"""
+
+        )
+        return cursor.fetchone()
+
+
+def delete_table_found_person():
+    """delete table found_person by cascade"""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """DROP TABLE IF EXISTS found_person CASCADE;"""
+        )
+
+
+def delete_table_seen_person():
+    """delete table seen_person by cascade"""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """DROP TABLE  IF EXISTS seen_person CASCADE;"""
+        )
+
+
+def creating_database():
+    delete_table_found_person()
+    delete_table_seen_person()
+    create_table_found_person()
+    create_table_seen_person()
+    print("Database was created!")
+
+# db = creating_database()
+# delete_table_found_person()
+# delete_table_seen_person()
+# create_table_found_person()
+# create_table_seen_person()
+# creating_database()
