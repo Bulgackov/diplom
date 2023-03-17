@@ -1,108 +1,76 @@
-import psycopg2 as pg
-from config import host, user, password, db_name
+import sqlite3
 
 
-with pg.connect(
-    host=host,  # 127.0.0.1
-    user=user,  # postgres
-    password=password,  # postgres
-    database=db_name  # postgres
-) as conn:
-    conn.autocommit = True
+class DB:
+    def __init__(self):
+        self.connection = sqlite3.connect("my_profiles.db")
+        self._create_table_seen_person()
 
-
-def create_table_found_person():
-    """create table found_person"""
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS found_person(
-                id serial,
-                id_vk varchar(20) NOT NULL PRIMARY KEY);"""
+    def _create_table_seen_person(self):
+        """create table seen_person"""
+        cur = self.connection.cursor()
+        cur.execute(
+            """
+                    CREATE TABLE IF NOT EXISTS
+                    seen_person(
+                        id integer PRIMARY KEY,
+                        user_id text NOT NULL,
+                        vk_id text NOT NULL
+                    );
+                """
         )
+        cur.close()
 
-
-def create_table_seen_person():  # references users(id_vk)
-    """create table seen_person"""
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """CREATE TABLE IF NOT EXISTS seen_person(
-            id serial,
-            id_vk varchar(50) PRIMARY KEY);"""
+    def insert(self, user_id, profile_id):
+        """inserting data into the seen_users table"""
+        cur = self.connection.cursor()
+        cur.execute(
+            """
+                    INSERT
+                    INTO seen_person (user_id, vk_id)
+                    VALUES (%s, %s)
+                """
+            % (user_id, profile_id),
         )
+        self.connection.commit()
+        cur.close()
 
-
-def insert_found_person(id_vk):
-    """insert info from looking_for_persons into table found_person"""
-    with conn.cursor() as cursor:
-        cursor.execute(
-            f"""INSERT INTO found_person (id_vk) 
-            VALUES (%s)""",
-            (id_vk,)
+    def check_profile(self, user_id):
+        cur = self.connection.cursor()
+        cur.execute(
+            """
+                    SELECT s.vk_id
+                    FROM seen_person AS s
+                    WHERE user_id = '%s';
+                """
+            % user_id
         )
+        _data = cur.fetchall()
+        cur.close()
+        return _data
 
-
-def insert_data_seen_person(id_vk, offset):
-    """inserting data into the seen_users table"""
-    with conn.cursor() as cursor:
-        cursor.execute(
-            f"""INSERT INTO seen_person (id_vk) 
-            VALUES ('{id_vk}')
-            OFFSET '{offset}';"""
+    def delete(self, user_id):
+        """
+        delete table seen_person by cascade
+        """
+        cur = self.connection.cursor()
+        cur.execute(
+            """
+                    DELETE
+                    FROM seen_person
+                    WHERE user_id = '%s';
+            """
+            % user_id
         )
-
-# def check():
-#     with conn.cursor() as cursor:
-#         cursor.execute(
-#             f"""SELECT fp.id_vk
-#             FROM found_person AS fp;"""
-#         )
-#         return cursor.fetchall()
+        self.connection.commit()
+        cur.close()
 
 
-
-def select(offset):
-    """select of unreviewed people"""
-    with conn.cursor() as cursor:
-        cursor.execute(
-            f"""SELECT 
-            fp.id_vk, 
-            sp.id_vk
-            FROM found_person AS fp
-            LEFT JOIN seen_person AS sp 
-            ON fp.id_vk = sp.id_vk
-            WHERE sp.id_vk IS NULL
-            OFFSET '{offset}';"""
-
-        )
-        return cursor.fetchone()
+_my_db = DB()
 
 
-def delete_table_found_person():
-    """delete table found_person by cascade"""
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """DROP TABLE IF EXISTS found_person CASCADE;"""
-        )
-
-
-def delete_table_seen_person():
-    """delete table seen_person by cascade"""
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """DROP TABLE  IF EXISTS seen_person CASCADE;"""
-        )
-
-
-def creating_database():
-    delete_table_found_person()
-    delete_table_seen_person()
-    create_table_found_person()
-    create_table_seen_person()
-    print("Database was created!")
-
-# db = creating_database()
-# delete_table_found_person()
-# delete_table_seen_person()
-# create_table_found_person()
-# create_table_seen_person()
-# creating_database()
+def get_db():
+    """
+    return class DB for work with DB
+    """
+    return _my_db
