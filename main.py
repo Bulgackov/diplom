@@ -1,117 +1,108 @@
-import psycopg2
+from bot import naming_of_years, Bot
+
+# from db import *
+START_MSG = (
+    " Бот готов к поиску, наберите: \n "
+    " Поиск или F - Поиск людей. \n"
+    " Удалить или D - удаляет старую БД и создает новую. \n"
+    " Смотреть или S - просмотр следующей записи в БД."
+)
+
+bot = Bot()
 
 
-class DatabaseConfig:
-    """Содержит методы для работы с базой данных PostgreSQL."""
+def login_user():
+    if bot.wait_start_chat():
+        bot.send_msg(START_MSG)
 
-    def __init__(self, database: str, user: str, password: str):
-        """Получает название базы данных, пользователя базы данных и пароля для подключения."""
-        self.database = database
-        self.user = user
-        self.password = password
 
-    def table_creation(self, table_name: str, table_columns: str):
-        """Создает таблицы в базе данных."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute(f"""CREATE TABLE IF NOT EXISTS {table_name} ({table_columns});""")
-            conn.commit()
-        conn.close()
+def search_dialog():
+    default_message = (
+        " Bведите возраст поиска, "
+        "на пример от 21 года и до 35 лет, "
+        "в формате : 21-35 (или 21 конкретный возраст 21 год)."
+    )
 
-    def table_removal(self, table_name: str):
-        """Удаляет таблицы из базы данных."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute(f"""DROP TABLE {table_name};""")
-            conn.commit()
-        conn.close()
+    if bot.user.age:
+        message = (
+            f"Ваш возраст: {naming_of_years(bot.user.age)} "
+            f"отправьте y что бы искать человека "
+            f"своего возрастаn\n или \n"
+        )
+        bot.send_msg(message + default_message)
+    else:
+        message = "Ваша дата рождения неизвестна! \n"
+        bot.send_msg(message + default_message)
 
-    def new_vk_user(self, user_id_in_vk: int, age: int, gender: int, city: int):
-        """Добавляет нового пользователя в таблицу vk_user."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute("""INSERT INTO vk_user(user_id_in_vk, age, gender, city) VALUES (%s, %s, %s, %s);""",
-                        (user_id_in_vk, age, gender, city))
-            conn.commit()
-        conn.close()
+    while bot.profile.age_from is None or bot.profile.age_to is None:
+        # воодим возраст поиска
+        bot.get_profile_age()
 
-    def vk_user_editor(self, age: int, gender: int, city: int, user_id: int):
-        """Изменяет данные пользователя в таблице vk_user."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute("""UPDATE vk_user SET age = %s, gender = %s, city = %s WHERE id = %s;""",
-                        (age, gender, city, user_id))
-            conn.commit()
-        conn.close()
+    message = (
+        "Введите: Да/y/yes - поиск будет произведен в городе"
+        "указанном в профиле. \n"
+        "Для поиска в другом городе введите Нет/n/no"
+    )
+    bot.send_msg(message)
+    while bot.profile.city_id is None or bot.profile.city_name is None:
+        # выбираем город поиска
+        bot.get_target_city()
 
-    def favorites(self, vk_user_id: int, name: str, surname: str, profile_url: str, photos: str):
-        """Добавляет в таблицу favorites новую запись."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO favorites(vk_user_id, name, surname, profile_url, photos) 
-                VALUES (%s, %s, %s, %s, %s);""",
-                (vk_user_id, name, surname, profile_url, photos))
-            conn.commit()
-        conn.close()
+    # выводит список в чат найденных людей и добавляет их в базу данных.
+    bot.looking_for_persons()
 
-    def fav_user(self, user_id_in_vk: int, fav_id: int):
-        """Связывает запись в favorites и vk_user через таблицу user_favorites."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute("""INSERT INTO user_favorites(user_id_in_vk, fav_id) VALUES (%s, %s);""",
-                        (user_id_in_vk, fav_id))
-            conn.commit()
-        conn.close()
+    # выводит в чат инфо одного человека из базы данных.
+    bot.show_found_person()
 
-    def user_blacklist(self, user_id_in_vk: int, blk_id: int):
-        """Добавляет в user_blacklist новую запись."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute("""INSERT INTO user_blacklist(user_id_in_vk, blk_id) VALUES (%s, %s);""",
-                        (user_id_in_vk, blk_id))
-            conn.commit()
-        conn.close()
 
-    def get_fav_users(self, user_id_in_vk: int) -> list:
-        """Возвращает список избранных профилей пользователя.
-        :return список кортежей, содержащих id профиля, имя, фамилию, фотографии.
-        """
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT name, surname, profile_url, photos FROM user_favorites uf 
-                LEFT JOIN favorites f ON uf.fav_id = f.vk_user_id
-                WHERE user_id_in_vk = %s;       
-            """, (user_id_in_vk,))
-            return cur.fetchall()
+def drop_all():
+    bot.db.delete(bot.user.user_id)
+    bot.send_msg(' База данных очищена! Сейчас наберите "Поиск" или F ')
+    bot.user = None
+    bot.profile = None
 
-    def get_user_blacklist(self, user_id_in_vk: int) -> list:
-        """Возвращает список профилей из черного списка пользователя.
-        :return список id профилей, находящихся в черном списке.
-        """
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT blk_id FROM user_blacklist
-                WHERE user_id_in_vk = %s;       
-            """, (user_id_in_vk,))
-            result = [item[0] for item in cur.fetchall()]
-            return result
 
-    def vk_user_removal(self, table: str, id_user: int):
-        """Удаляет запись из таблицы по id пользователя."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute(f"""DELETE FROM {table} WHERE id=%s;""", id_user)
-            conn.commit()
-        conn.close()
+def print_profile():
+    if bot.get_found_person_id() != 0:
+        bot.show_found_person()
+    else:
+        bot.send_msg(" В начале наберите Поиск или f.  ")
 
-    def clear_favorites_table(self):
-        """Очищает таблицу избранного."""
-        conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-        with conn.cursor() as cur:
-            cur.execute(f"""DELETE FROM user_favorites;
-                            DELETE FROM favorites;""")
-            conn.commit()
-        conn.close()
+
+def bad_request():
+    bot.send_msg(
+        "Не понимаю вас, "
+        "попробуте что то из списка моих команд "
+        f"\n {START_MSG[34:]}"
+    )
+
+
+def main():
+    login_user()
+
+    while True:
+        try:
+            answer = bot.wait_text().lower()
+
+            if answer == "поиск" or answer == "f":
+                search_dialog()
+
+            elif answer == "удалить" or answer == "d":
+                drop_all()
+                return
+
+            elif answer == "смотреть" or answer == "s":
+                print_profile()
+            else:
+                bad_request()
+
+        except BaseException as e:
+            message = "Что то пошло не так, повторите запрос ещё раз"
+            bot.send_msg(f"{e}\n{message}\n")
+            bot.send_msg(START_MSG)
+            raise e
+
+
+if __name__ == "__main__":
+    while True:
+        main()
