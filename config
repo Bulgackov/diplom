@@ -4,8 +4,7 @@ service_key = (
     ""
 )
 
-group_token = (
-    "vk1.a.Oo90TDFjWjUVoWck-BmE7neNoW__C-yp53iCnbW-zM6Pv-55-QJZsl2obwKzPZNHFKx8DG5Eshp7lNZf7cALGkq-viBpyvQNSMaatHJs_A4obfqou_fZ2Da2e6_pmdensfulr5lgNYz5OrTQMiUma9WXAYalAFwfwULRa90ea8pnamhNCSchEmtoGAna3svw4X_bYxDG52uWYeT9W43RSg"
+group_token = ("vk1.a.Oo90TDFjWjUVoWck-BmE7neNoW__C-yp53iCnbW-zM6Pv-55-QJZsl2obwKzPZNHFKx8DG5Eshp7lNZf7cALGkq-viBpyvQNSMaatHJs_A4obfqou_fZ2Da2e6_pmdensfulr5lgNYz5OrTQMiUma9WXAYalAFwfwULRa90ea8pnamhNCSchEmtoGAna3svw4X_bYxDG52uWYeT9W43RSg"
 )
 group_id = "Диплом"
 
