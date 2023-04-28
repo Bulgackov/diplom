@@ -1,15 +1,11 @@
-from random import randrange
-from typing import Union
+import vk_api
 
 from vk_api.longpoll import VkEventType
 from datetime import datetime, date
 from vk_api.exceptions import ApiError
 
-from api import get_vk_api
-
-
-from db import get_db
-
+from config import community_token, access_token
+from core import VKTools
 
 MONTS_NAMES = {
     "1": "января",
