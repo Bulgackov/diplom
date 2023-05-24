@@ -11,6 +11,25 @@ from config import (
     user_password,
 )
 
+from config import comunity_token
+# отправка сообщений
+Vk = vk_api. VkApi (token=comunity_token)
+
+def message_send(user_id, message, attachment=None) :
+
+vk.method ('messages.send'
+{'user id': user_id,
+'message': message
+attachment: attachment,
+'random_id': get_random_id()
+
+ # обработка событий / получение сообщений
+ longpoll = VkLongPol1 (vk)
+
+# эхо
+for event in longpoll.listen():
+if event. type == VkEventType.MESSAGE_NEW and event. to_me:
+message_send(event.user_id, event. text. lower ())
 
 class Api:
     def __init__(self):
