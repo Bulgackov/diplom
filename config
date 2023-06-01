@@ -1,13 +1,15 @@
-app_id =
-app_key = ""
-service_key = (
-    ""
-)
+SQLsystem = 'postgresql'
+login = 'postgres'
+password = '****'
+host = 'localhost'
+port = 5432
+db_name = "diplom_Vkinder"
+DSN = f'{SQLsystem}://{login}:{password}@{host}:{port}/{db_name}'
 
 community_token = ("vk1.a.Oo90TDFjWjUVoWck-BmE7neNoW__C-yp53iCnbW-zM6Pv-55-QJZsl2obwKzPZNHFKx8DG5Eshp7lNZf7cALGkq-viBpyvQNSMaatHJs_A4obfqou_fZ2Da2e6_pmdensfulr5lgNYz5OrTQMiUma9WXAYalAFwfwULRa90ea8pnamhNCSchEmtoGAna3svw4X_bYxDG52uWYeT9W43RSg"
 )
 access_token = ("vk1.a.owacuoBkr13rPNkItQ5PfCFn327Oc0QQyfhXf0jrSmIzgoLtq_wOf4RQaCOFn72R6JM1BQ0J4zCXO-p-J756u5KFHC7xn9gnQ451Uwsg0AfiyE6oqtET-C23r7g7iuIMUabIF4xOBChfhsxlIl0Qx4SvZ7upkPZlnyFQQPbGOfgggrczlBEI_tCT__75HCNJT5l-YcHDCo0g0fUF82aHVQ")
 group_id = "Диплом"
 
-user_login = ""
-user_password = ""
+user_login = "Булгаков"
+user_password = "Disco!"
