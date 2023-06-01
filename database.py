@@ -1,76 +1,63 @@
-import sqlite3
+import sqlalchemy as sq
+from sqlalchemy import MetaData
+from sqlalchemy.orm import declarative_base, sessionmaker
+from config import DSN
+
+# схема БД
+metadata = MetaData()
+Base = declarative_base()
 
 
-class DB:
-    def __init__(self):
-        self.connection = sqlite3.connect("my_profiles.db")
-        self._create_table_seen_person()
+class Viewed(Base):
+    __tablename__ = 'viewed'
 
-    def _create_table_seen_person(self):
-        """create table seen_person"""
-        cur = self.connection.cursor()
-        cur.execute(
-            """
-                    CREATE TABLE IF NOT EXISTS
-                    seen_person(
-                        id integer PRIMARY KEY,
-                        user_id text NOT NULL,
-                        vk_id text NOT NULL
-                    );
-                """
-        )
-        cur.close()
+    id = sq.Column(sq.Integer, primary_key=True)  # id записи в таблице
+    profile_id = sq.Column(sq.Integer, nullable=False)  # id пользователя
+    account_id = sq.Column(sq.Integer, unique=True)  # id владельца отправляемых фото
 
-    def insert(self, user_id, profile_id):
-        """inserting data into the seen_users table"""
-        cur = self.connection.cursor()
-        cur.execute(
-            """
-                    INSERT
-                    INTO seen_person (user_id, vk_id)
-                    VALUES (%s, %s)
-                """
-            % (user_id, profile_id),
-        )
-        self.connection.commit()
-        cur.close()
-
-    def check_profile(self, user_id):
-        cur = self.connection.cursor()
-        cur.execute(
-            """
-                    SELECT s.vk_id
-                    FROM seen_person AS s
-                    WHERE user_id = '%s';
-                """
-            % user_id
-        )
-        _data = cur.fetchall()
-        cur.close()
-        return _data
-
-    def delete(self, user_id):
-        """
-        delete table seen_person by cascade
-        """
-        cur = self.connection.cursor()
-        cur.execute(
-            """
-                    DELETE
-                    FROM seen_person
-                    WHERE user_id = '%s';
-            """
-            % user_id
-        )
-        self.connection.commit()
-        cur.close()
+    def __str__(self):
+        return (f'ID записи: {self.id}|'
+                f' ID клиента: {self.profile_id}|'
+                f' ID владельца фото: {self.account_id}\n ')
 
 
-_my_db = DB()
+def create_tables(mover):
+    Base.metadata.create_all(mover)
 
 
-def get_db():
-    """
-    return class DB for work with DB
-    """
-    return _my_db
+# добавление записи в бд
+def add_to_table(session, profile_id, account_id):
+    to_bd = Viewed(profile_id=profile_id, account_id=account_id)
+    session.add(to_bd)
+    session.commit()
+    print(to_bd.profile_id)
+
+
+# извлечение записей из БД
+def extract_from_db(session, account_id):
+    from_db = session.query(Viewed).filter(Viewed.account_id == account_id).all()
+    if not from_db:
+        result = 0
+    else:
+        for s in from_db:
+            print(s)
+        result = 1
+    return result
+
+
+if __name__ == '__main__':
+    engine = sq.create_engine(DSN)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    # Base.metadata.drop_all(engine)
+
+    create_tables(engine)
+    # add_to_table(session, profile_id=119258287, account_id=130334067)
+    from_bd = extract_from_db(session, 130334067)
+    print(from_bd)
+    q = session.query(Viewed).all()
+    for c in q:
+        print(c)
+
+    session.close()
